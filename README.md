@@ -2,6 +2,8 @@
 
 Scoundrel card game engine, Gymnasium environment, pygame viewer, Maskable PPO training experiments
 
+![Pygame viewer](docs/images/viewer-screenshot.png)
+
 ## Installation
 
 `**setup_env.sh**` is for Unix-like systems (Linux, macOS). It creates a Python **venv** in `.venv/`, upgrades `pip`, and installs **scoundrel-rl** in editable mode with the `dev`, `gui`, `rl`, and `analysis` extras (tests, pygame viewer, Stable-Baselines3, plotting).
