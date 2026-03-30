@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scoundrel-rl"
+version = "0.1.0"
+description = "Scoundrel card game simulator and RL experiments"
+requires-python = ">=3.10"
+dependencies = [
+    "gymnasium>=0.29",
+    "numpy>=1.24",
+]
+
+[project.scripts]
+scoundrel-viewer = "viewer.main:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "pytest-cov>=4"]
+gui = ["pygame>=2.5"]
+analysis = ["matplotlib>=3.7", "tensorboard>=2.14"]
+rl = [
+    "stable-baselines3>=2.3",
+    "sb3-contrib>=2.3",
+    "tensorboard>=2.14",
+    "tqdm>=4.65",
+    "rich>=13.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scoundrel*", "viewer*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# So `import scoundrel` works from tests without relying on which `pytest` binary runs
+# (always use: `python -m pytest` from repo root, or `.venv/bin/python -m pytest`).
+pythonpath = ["."]
+
+[tool.coverage.run]
+branch = true
+source = ["scoundrel"]

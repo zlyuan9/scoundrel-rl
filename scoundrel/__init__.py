@@ -1,0 +1,1 @@
+"""Scoundrel game package."""

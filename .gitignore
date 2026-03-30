@@ -1,0 +1,17 @@
+DEVELOPER_GUIDE.md
+.env
+.venv
+*.egg-info/
+.DS_Store
+.coverage
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.log
+*.log.*
+runs/
