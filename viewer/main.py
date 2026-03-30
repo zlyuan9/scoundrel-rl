@@ -234,7 +234,7 @@ class GameView:
             col = C_TEXT_DIM
         else:
             ls = "\u221e" if math.isinf(last) else str(int(last))
-            txt = f"Weapon: {rank_label(wcard.value)}{suit_symbol(wcard.suit)}  chain<{ls}"
+            txt = f"Weapon: {rank_label(wcard.value)}{suit_symbol(wcard.suit)}  chain≤{ls}"
             col = C_WEAPON
         pad_x = 10
         max_w = max(40, w - 2 * pad_x)

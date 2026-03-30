@@ -8,7 +8,9 @@ Requires: pip install -e ".[gui,rl]"
 
 Example::
 
-    PYTHONPATH=. python -m scoundrel.replay_best_gui runs/20260330_004520
+    PYTHONPATH=. python -m scoundrel.replay_best_gui runs/20260330_113816
+
+After training, ``scoundrel.train`` prints this command (same idea as the plot command).
 """
 
 from __future__ import annotations
@@ -26,10 +28,8 @@ from sb3_contrib.common.wrappers import ActionMasker
 from sb3_contrib.ppo_mask import MaskablePPO
 
 from scoundrel.env import ScoundrelEnv
+from scoundrel.train import make_masked_env as _train_make_masked_env
 from viewer.main import GameView, infer_phase
-
-# Keep in sync with scoundrel.train
-MAX_EPISODE_STEPS = 512
 
 
 def mask_fn(env) -> np.ndarray:
@@ -37,8 +37,8 @@ def mask_fn(env) -> np.ndarray:
 
 
 def make_masked_env():
-    base = TimeLimit(ScoundrelEnv(), max_episode_steps=MAX_EPISODE_STEPS)
-    return ActionMasker(base, mask_fn)
+    """Re-use the exact env factory from train so obs/reward match the checkpoint."""
+    return _train_make_masked_env()
 
 
 def _action_label(a: int) -> str:
@@ -70,22 +70,12 @@ def find_latest_run_with_model() -> Path:
     return max(zips, key=lambda p: p.stat().st_mtime).resolve()
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Replay a trained MaskablePPO with step-through GUI.")
-    parser.add_argument(
-        "run_dir",
-        type=Path,
-        nargs="?",
-        default=None,
-        help="Training run directory (e.g. runs/20260329_235557). Default: newest under runs/ with a saved zip.",
-    )
-    parser.add_argument("--seed", type=int, default=None, help="RNG seed for env.reset (optional).")
-    args = parser.parse_args()
-
-    if args.run_dir is None:
+def run_interactive_replay(run_dir: Path | None = None, *, seed: int | None = None) -> None:
+    """Load a saved zip from ``run_dir`` (or newest under ``./runs``) and run the pygame replay loop."""
+    if run_dir is None:
         model_zip = find_latest_run_with_model()
     else:
-        model_zip = resolve_model_zip(args.run_dir.resolve())
+        model_zip = resolve_model_zip(run_dir.resolve())
 
     print(f"Loading {model_zip}", flush=True)
 
@@ -98,8 +88,8 @@ def main() -> None:
         nonlocal first_episode
         if first_episode:
             first_episode = False
-            if args.seed is not None:
-                return args.seed
+            if seed is not None:
+                return seed
         return random.randint(0, 2**31 - 1)
 
     episode_seed = next_episode_seed()
@@ -250,6 +240,20 @@ def main() -> None:
         clock.tick(60)
 
     env.close()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Replay a trained MaskablePPO with step-through GUI.")
+    parser.add_argument(
+        "run_dir",
+        type=Path,
+        nargs="?",
+        default=None,
+        help="Training run directory (e.g. runs/20260329_235557). Default: newest under runs/ with a saved zip.",
+    )
+    parser.add_argument("--seed", type=int, default=None, help="RNG seed for env.reset (optional).")
+    args = parser.parse_args()
+    run_interactive_replay(args.run_dir, seed=args.seed)
 
 
 if __name__ == "__main__":

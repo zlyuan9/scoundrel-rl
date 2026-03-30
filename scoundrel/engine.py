@@ -17,7 +17,15 @@ def create_deck():
 
 
 class Engine:
-    def __init__(self, *, seed: int | None = None):
+    def __init__(
+        self,
+        *,
+        seed: int | None = None,
+        win_reward: float = 1.0,
+        loss_reward: float = -1.0,
+    ):
+        self._win_reward = float(win_reward)
+        self._loss_reward = float(loss_reward)
         if seed is not None:
             random.seed(seed)
         self._init_state()
@@ -33,6 +41,7 @@ class Engine:
         self.skipped_room = False
         self.used_potion = False
         self._resolves_left = 0
+        self._last_resolve_info: dict = {}
 
     def __str__(self):
         return f"Engine(deck={self.deck})"
@@ -62,9 +71,9 @@ class Engine:
 
     def _reward_for_terminal(self) -> float:
         if self.game_won:
-            return 1.0
+            return self._win_reward
         if self.game_lost:
-            return -1.0
+            return self._loss_reward
         return 0.0
 
     def step(self, action: int) -> tuple[float, bool, bool, dict]:
@@ -87,7 +96,7 @@ class Engine:
                 self.start_turn()
             reward = self._reward_for_terminal()
             terminated = self.game_won or self.game_lost
-            return reward, terminated, False, {}
+            return reward, terminated, False, dict(self._last_resolve_info)
 
         # Turn phase: choose skip or enter room
         if action not in (0, 1):
@@ -173,16 +182,30 @@ class Engine:
             return "room_done"
         return "playing"
 
-    def resolve_card(self, card_index):
-        """Resolve one room card. Weapon chain: each kill must be strictly weaker than the last
-        kill with that weapon (DEVELOPER_GUIDE §2.6). New weapon resets the chain (last_slain = inf).
+    def can_use_weapon_on_monster(self, card: Card) -> bool:
+        """True if an equipped weapon may be used on this monster (chain rule: m ≤ last slain).
+
+        ``last_slain`` is ``math.inf`` after equipping until the first kill with that weapon.
         """
+        if card.type != "monster":
+            return False
+        wcard, last_slain = self.weapon
+        return wcard is not None and card.value <= last_slain
+
+    def resolve_card(self, card_index):
+        """Resolve one room card. Weapon chain: each kill must be ≤ the previous kill's rank with
+        that weapon (DEVELOPER_GUIDE §2.6). New weapon resets the chain (last_slain = inf).
+
+        Sets ``_last_resolve_info`` for potions: ``wasted_potion`` (second potion same room) or
+        ``potion_overheal`` (HP that would exceed 20, as an int). For weapons: ``weapon_downgrade``
+        when equipping a lower-rank weapon over an already-equipped higher-rank one.
+        """
+        self._last_resolve_info = {}
         card = self.hand[card_index]
         self.hand[card_index] = None
         if card.type == "monster":
-            wcard, last_slain = self.weapon
-            can_use_weapon = wcard is not None and card.value < last_slain
-            if can_use_weapon:
+            if self.can_use_weapon_on_monster(card):
+                wcard, _last_slain = self.weapon
                 dmg = max(0, card.value - wcard.value)
                 self.health -= dmg
                 self.weapon = (wcard, card.value)
@@ -194,15 +217,21 @@ class Engine:
                 self.game_lost = True
             return
         if card.type == "weapon":
+            wcard, _ = self.weapon
+            if wcard is not None and card.value < wcard.value:
+                self._last_resolve_info["weapon_downgrade"] = True
             self.weapon = (card, math.inf)
             return
         if card.type == "potion":
             if self.used_potion:
+                self._last_resolve_info["wasted_potion"] = True
                 return
-            self.health += card.value
-            if self.health > 20:
-                self.health = 20
+            new_h = self.health + card.value
+            overheal = max(0, new_h - 20)
+            self.health = min(new_h, 20)
             self.used_potion = True
+            if overheal > 0:
+                self._last_resolve_info["potion_overheal"] = overheal
             return
         return
 

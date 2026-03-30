@@ -40,14 +40,14 @@ Workflow overview:
 1. Install the package (see above).
 2. Run the **viewer** to play the game in a window (requires `gui`).
 3. Use `**ScoundrelEnv`** from Python for Gymnasium-style `reset` / `step` with **action masks**.
-4. **Train** with Maskable PPO and log **TensorBoard** metrics under `runs/<timestamp>/`.
-5. **Plot** rollout metrics from the TensorBoard logs (`analysis/plot_run.py`), or open TensorBoard.
+4. **Train** with Maskable PPO and log **TensorBoard** metrics under `runs/<timestamp>/` (training **win rate**, **deck stats**, eval reward).
+5. **Plot** rollout metrics (`analysis/figures/<run>.png` is written automatically after training if `analysis` extras are installed; use `analysis/plot_run.py` to regenerate), **replay** the policy with `python -m scoundrel.replay_best_gui runs/<timestamp>/` (command is printed after training), or open TensorBoard.
 
 ## Results (example run)
 
-Example **rollout** curves from a Maskable PPO training run (`runs/20260330_004520`): **mean episode return** and **mean episode length** vs environment steps. Training used **Ng potential-based shaping** on deck progress with γ aligned to PPO. On comparable setups, policies can reach **on the order of ~30% win rate** on random shuffles (not all deck orders are winnable, good chance there is room for improvement however)
+Example **TensorBoard-style** view of a Maskable PPO training run: **mean episode return** (auto-scaled y-axis), **mean episode length**, **rolling training win rate**, and **deck / in-play monster stats** (mean monster rank-sum still in the draw pile at episode end, and mean monster **count** in deck+hand — the latter tracks progress aligned with potential shaping). Training uses **dense shaping** unless disabled: per-room HP loss penalty, **Ng-style potential** on monster progress in deck+hand (γ matched to PPO), bonus when monster power leaves the draw pile, optional **room-survived** bonus, and optional penalties for **wasted potions** and **overheal** (weapon-downgrade penalty is configurable and often off). Policies on random shuffles can reach **on the order of tens of percent** training win rate depending on settings; not all deck orders are winnable.
 
-![Rollout ep_rew_mean and ep_len_mean vs timesteps](analysis/figures/20260330_004520.png)
+![Rollout metrics (example)](docs/images/training_rollout_example.png)
 
 ## Examples
 
@@ -64,7 +64,7 @@ scoundrel-viewer
 # or: python -m viewer
 ```
 
-**Train Maskable PPO** (writes `runs/<timestamp>/` with TensorBoard logs and checkpoints):
+**Train Maskable PPO** (writes `runs/<timestamp>/` with TensorBoard logs and checkpoints; on success also writes `analysis/figures/<run_name>.png` when the `analysis` extra is installed; prints commands to regenerate the plot and to open the **replay GUI**):
 
 ```bash
 PYTHONPATH=. python -m scoundrel.train
@@ -76,7 +76,7 @@ PYTHONPATH=. python -m scoundrel.train
 tensorboard --logdir runs/<timestamp>/tensorboard
 ```
 
-**Plot rollout metrics** (`rollout/ep_rew_mean`, `rollout/ep_len_mean`) to a PNG:
+**Plot rollout metrics** (same figure as the post-training step, or regenerate for any run):
 
 ```bash
 PYTHONPATH=. python analysis/plot_run.py
@@ -88,12 +88,12 @@ With no `--logdir`, `plot_run.py` picks the newest TensorBoard event file under 
 ## Project layout
 
 
-| Path         | Purpose                                 |
-| ------------ | --------------------------------------- |
-| `scoundrel/` | Engine, `ScoundrelEnv`, `train.py`      |
-| `viewer/`    | Pygame UI                               |
-| `tests/`     | Pytest suite                            |
-| `analysis/`  | `plot_run.py` for TensorBoard → figures |
-| `runs/`      | Training outputs (gitignored)           |
-
+| Path         | Purpose                                                                 |
+| ------------ | ----------------------------------------------------------------------- |
+| `scoundrel/` | Engine, `ScoundrelEnv`, `train.py`, TensorBoard callbacks (win / deck) |
+| `viewer/`    | Pygame UI                                                             |
+| `tests/`     | Pytest suite                                                          |
+| `analysis/`  | `plot_run.py` for TensorBoard → figures                               |
+| `docs/images/` | Screenshots for this README                                         |
+| `runs/`      | Training outputs (gitignored)                                         |
 

@@ -24,6 +24,7 @@ def make_engine():
         e.skipped_room = False
         e.used_potion = False
         e._resolves_left = 0
+        e._last_resolve_info = {}
         for k, v in overrides.items():
             setattr(e, k, v)
         return e

@@ -1,8 +1,8 @@
 """
 Branch tests for Engine.resolve_card aligned with DEVELOPER_GUIDE.md §2.6.
 
-Weapon: damage max(0, monster - weapon); chain requires next monster strictly weaker
-than the last monster killed with that weapon. New weapon resets chain (last_slain = inf).
+Weapon: damage max(0, monster - weapon); chain allows the next monster only if its rank is
+≤ the last monster killed with that weapon. New weapon resets chain (last_slain = inf).
 
 Potion: at most one effective potion per room turn; second in same turn has no effect.
 """
@@ -94,7 +94,7 @@ def test_monster_with_weapon_damage_kills_player(make_engine):
     assert e.game_lost is True
 
 
-# --- Weapon chain: second monster must be strictly weaker than last kill ---
+# --- Weapon chain: second monster must be ≤ last kill (same rank allowed) ---
 
 
 def test_monster_weapon_chain_second_weaker_uses_weapon(make_engine):
@@ -109,8 +109,8 @@ def test_monster_weapon_chain_second_weaker_uses_weapon(make_engine):
     assert e.weapon == (w, 6)
 
 
-def test_monster_weapon_chain_equal_value_forces_barehand(make_engine):
-    """Two 10s: second kill must be strictly weaker than 10 → barehand on second 10."""
+def test_monster_weapon_chain_equal_value_uses_weapon(make_engine):
+    """Same rank as last kill (10) still allows weapon: damage max(0, 10-5)=5."""
     w = Card("diamonds", 5, "weapon")
     e = make_engine(
         hand={0: Card("spades", 10, "monster"), 1: None, 2: None, 3: None},
@@ -118,7 +118,7 @@ def test_monster_weapon_chain_equal_value_forces_barehand(make_engine):
         weapon=(w, 10),
     )
     e.resolve_card(0)
-    assert e.health == 10
+    assert e.health == 15
     assert e.weapon == (w, 10)
 
 
@@ -162,6 +162,39 @@ def test_weapon_equip_resets_chain_to_inf(make_engine):
     assert e.weapon[1] == math.inf
 
 
+def test_weapon_downgrade_sets_info(make_engine):
+    old = Card("diamonds", 9, "weapon")
+    new_w = Card("diamonds", 4, "weapon")
+    e = make_engine(
+        hand={0: new_w, 1: None, 2: None, 3: None},
+        weapon=(old, 7),
+    )
+    e.resolve_card(0)
+    assert e.weapon[0] is new_w
+    assert e._last_resolve_info.get("weapon_downgrade") is True
+
+
+def test_weapon_first_equip_no_downgrade_info(make_engine):
+    new_w = Card("diamonds", 4, "weapon")
+    e = make_engine(
+        hand={0: new_w, 1: None, 2: None, 3: None},
+        weapon=(None, math.inf),
+    )
+    e.resolve_card(0)
+    assert "weapon_downgrade" not in e._last_resolve_info
+
+
+def test_weapon_upgrade_no_downgrade_info(make_engine):
+    old = Card("diamonds", 4, "weapon")
+    new_w = Card("diamonds", 9, "weapon")
+    e = make_engine(
+        hand={0: new_w, 1: None, 2: None, 3: None},
+        weapon=(old, 7),
+    )
+    e.resolve_card(0)
+    assert "weapon_downgrade" not in e._last_resolve_info
+
+
 # --- Potions ---
 
 
@@ -171,6 +204,7 @@ def test_potion_heals_and_caps_at_20(make_engine):
     e.resolve_card(0)
     assert e.health == 20
     assert e.used_potion is True
+    assert e._last_resolve_info.get("potion_overheal") == 4
 
 
 def test_potion_heal_without_hitting_cap_branch(make_engine):
@@ -180,6 +214,7 @@ def test_potion_heal_without_hitting_cap_branch(make_engine):
     e.resolve_card(0)
     assert e.health == 14
     assert e.used_potion is True
+    assert "potion_overheal" not in e._last_resolve_info
 
 
 def test_potion_no_op_when_already_used_this_room(make_engine):
@@ -192,6 +227,7 @@ def test_potion_no_op_when_already_used_this_room(make_engine):
     e.resolve_card(0)
     assert e.health == 10
     assert e.used_potion is True
+    assert e._last_resolve_info.get("wasted_potion") is True
 
 
 def test_potion_first_sets_flag_second_in_same_turn_no_heal(make_engine):
@@ -211,6 +247,7 @@ def test_potion_first_sets_flag_second_in_same_turn_no_heal(make_engine):
     assert e.used_potion is True
     e.resolve_card(1)
     assert e.health == 15
+    assert e._last_resolve_info.get("wasted_potion") is True
 
 
 # --- Unknown / fallback ---
