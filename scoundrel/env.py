@@ -91,6 +91,9 @@ _SUIT_TO_IDX = {"spades": 0, "clubs": 1, "diamonds": 2, "hearts": 3}
 _TYPE_TO_IDX = {"monster": 0, "weapon": 1, "potion": 2}
 _IDX_TO_SUIT = ("spades", "clubs", "diamonds", "hearts")
 _CHAIN_SENTINEL = 9999
+# VecEnv autoreset calls ``reset()`` with ``seed=None``; sample deck RNG seeds from [0, 2**63)
+# so episodes are not tied to a small modulus (SB3 still passes explicit seeds on first reset).
+_EPISODE_SEED_UPPER = 2**63
 
 
 def encode_hand(engine: Engine) -> np.ndarray:
@@ -335,6 +338,10 @@ class ScoundrelEnv(gym.Env):
         self.action_space = spaces.Discrete(6)
 
     def reset(self, seed=None, options=None):
+        if seed is None:
+            seed = int(
+                self.np_random.integers(0, _EPISODE_SEED_UPPER, dtype=np.uint64)
+            )
         super().reset(seed=seed)
         self.engine.reset(seed=seed)
         # After reset we're in turn phase; skip is legal (skipped_room=False).

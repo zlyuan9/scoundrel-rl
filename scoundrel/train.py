@@ -23,7 +23,7 @@ MAX_EPISODE_STEPS = 512
 
 LOG_INTERVAL = 5
 N_TRAIN_ENVS = 8
-TOTAL_TIMESTEPS = 20_000_000
+TOTAL_TIMESTEPS = 50_000_000
 
 # ---------------------------------------------------------------------------
 # Reward configuration — all passed explicitly to ScoundrelEnv
